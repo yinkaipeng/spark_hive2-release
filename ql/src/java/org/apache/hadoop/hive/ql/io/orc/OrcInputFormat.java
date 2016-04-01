@@ -19,6 +19,7 @@
 package org.apache.hadoop.hive.ql.io.orc;
 
 import java.io.IOException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,6 +32,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
@@ -72,8 +74,10 @@ import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.StringUtils;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
@@ -376,6 +380,7 @@ public class OrcInputFormat  implements InputFormat<NullWritable, OrcStruct>,
     private final long minSize;
     private final boolean footerInSplits;
     private final boolean cacheStripeDetails;
+    private final boolean forceThreadpool;
     private final AtomicInteger cacheHitCounter = new AtomicInteger(0);
     private final AtomicInteger numFilesCounter = new AtomicInteger(0);
     private ValidTxnList transactionList;
@@ -385,6 +390,7 @@ public class OrcInputFormat  implements InputFormat<NullWritable, OrcStruct>,
       this.conf = conf;
       minSize = conf.getLong(MIN_SPLIT_SIZE, DEFAULT_MIN_SPLIT_SIZE);
       maxSize = conf.getLong(MAX_SPLIT_SIZE, DEFAULT_MAX_SPLIT_SIZE);
+      this.forceThreadpool = HiveConf.getBoolVar(conf, ConfVars.HIVE_IN_TEST);
       String ss = conf.get(ConfVars.HIVE_ORC_SPLIT_STRATEGY.varname);
       if (ss == null || ss.equals(SplitStrategyKind.HYBRID.name())) {
         splitStrategyKind = SplitStrategyKind.HYBRID;
@@ -419,6 +425,20 @@ public class OrcInputFormat  implements InputFormat<NullWritable, OrcStruct>,
       String value = conf.get(ValidTxnList.VALID_TXNS_KEY,
                               Long.MAX_VALUE + ":");
       transactionList = new ValidReadTxnList(value);
+    }
+
+    @VisibleForTesting
+    static int getCurrentThreadPoolSize() {
+      synchronized (Context.class) {
+        return (threadPool instanceof ThreadPoolExecutor)
+            ? ((ThreadPoolExecutor)threadPool).getPoolSize() : ((threadPool == null) ? 0 : -1);
+      }
+    }
+    @VisibleForTesting
+    static void resetThreadPool() {
+      synchronized (Context.class) {
+        threadPool = null;
+      }
     }
   }
 
@@ -621,16 +641,34 @@ public class OrcInputFormat  implements InputFormat<NullWritable, OrcStruct>,
     private final Context context;
     private final FileSystem fs;
     private final Path dir;
+    private final UserGroupInformation ugi;
 
-    FileGenerator(Context context, FileSystem fs, Path dir) {
+    FileGenerator(Context context, FileSystem fs, Path dir, UserGroupInformation ugi) {
       this.context = context;
       this.fs = fs;
       this.dir = dir;
+      this.ugi = ugi;
     }
 
     @Override
     public SplitStrategy call() throws IOException {
-      final SplitStrategy splitStrategy;
+      if (ugi == null) {
+        return callInternal();
+      }
+    try {
+      return ugi.doAs(new PrivilegedExceptionAction<SplitStrategy>() {
+        @Override
+        public SplitStrategy run() throws Exception {
+          return callInternal();
+        }
+      });
+    } catch (InterruptedException e) {
+      throw new IOException(e);
+    }
+    }
+
+    private SplitStrategy callInternal() throws IOException {
+        final SplitStrategy splitStrategy;
       AcidUtils.Directory dirInfo = AcidUtils.getAcidState(dir,
           context.conf, context.transactionList);
       List<Long> deltas = AcidUtils.serializeDeltas(dirInfo.getCurrentDirectories());
@@ -716,8 +754,9 @@ public class OrcInputFormat  implements InputFormat<NullWritable, OrcStruct>,
     private OrcFile.WriterVersion writerVersion;
     private long projColsUncompressedSize;
     private List<OrcSplit> deltaSplits;
+    private final UserGroupInformation ugi;
 
-    public SplitGenerator(SplitInfo splitInfo) throws IOException {
+    public SplitGenerator(SplitInfo splitInfo, UserGroupInformation ugi) throws IOException {
       this.context = splitInfo.context;
       this.fs = splitInfo.fs;
       this.file = splitInfo.file;
@@ -729,6 +768,7 @@ public class OrcInputFormat  implements InputFormat<NullWritable, OrcStruct>,
       this.hasBase = splitInfo.hasBase;
       this.projColsUncompressedSize = -1;
       this.deltaSplits = splitInfo.getSplits();
+      this.ugi = ugi;
     }
 
     Path getPath() {
@@ -833,6 +873,22 @@ public class OrcInputFormat  implements InputFormat<NullWritable, OrcStruct>,
      */
     @Override
     public List<OrcSplit> call() throws IOException {
+      if (ugi == null) {
+        return callInternal();
+      }
+      try {
+        return ugi.doAs(new PrivilegedExceptionAction<List<OrcSplit>>() {
+          @Override
+          public List<OrcSplit> run() throws Exception {
+            return callInternal();
+          }
+        });
+      } catch (InterruptedException e) {
+        throw new IOException(e);
+      }
+    }
+
+    private List<OrcSplit> callInternal() throws IOException {
       populateAndCacheStripeDetails();
       List<OrcSplit> splits = Lists.newArrayList();
 
@@ -984,11 +1040,12 @@ public class OrcInputFormat  implements InputFormat<NullWritable, OrcStruct>,
     List<OrcSplit> splits = Lists.newArrayList();
     List<Future<?>> pathFutures = Lists.newArrayList();
     List<Future<?>> splitFutures = Lists.newArrayList();
+    UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
 
     // multi-threaded file statuses and split strategy
     for (Path dir : getInputPaths(conf)) {
       FileSystem fs = dir.getFileSystem(conf);
-      FileGenerator fileGenerator = new FileGenerator(context, fs, dir);
+      FileGenerator fileGenerator = new FileGenerator(context, fs, dir, ugi);
       pathFutures.add(context.threadPool.submit(fileGenerator));
     }
 
@@ -1004,7 +1061,7 @@ public class OrcInputFormat  implements InputFormat<NullWritable, OrcStruct>,
         if (splitStrategy instanceof ETLSplitStrategy) {
           List<SplitInfo> splitInfos = splitStrategy.getSplits();
           for (SplitInfo splitInfo : splitInfos) {
-            splitFutures.add(context.threadPool.submit(new SplitGenerator(splitInfo)));
+            splitFutures.add(context.threadPool.submit(new SplitGenerator(splitInfo, ugi)));
           }
         } else {
           splits.addAll(splitStrategy.getSplits());
