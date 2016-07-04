@@ -148,6 +148,8 @@ import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 
+import java.util.Collections;
+
 /**
  * Hive Metastore Client.
  * The public implementation of IMetaStoreClient. Methods not inherited from IMetaStoreClient
@@ -223,6 +225,10 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
           metastoreUris[i++] = tmpUri;
 
         }
+        // make metastore URIS random
+        List uriList = Arrays.asList(metastoreUris);
+        Collections.shuffle(uriList);
+        metastoreUris = (URI[]) uriList.toArray();
       } catch (IllegalArgumentException e) {
         throw (e);
       } catch (Exception e) {
