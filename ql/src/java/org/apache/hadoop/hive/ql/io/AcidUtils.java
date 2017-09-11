@@ -26,6 +26,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.common.ValidTxnList;
+import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
+import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.shims.HadoopShims;
 import org.apache.hadoop.hive.shims.ShimLoader;
 
@@ -34,6 +36,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
+
+import static org.apache.hadoop.hive.ql.exec.Utilities.COPY_KEYWORD;
 
 /**
  * Utilities that are shared by all of the ACID input and output formats. They
@@ -81,8 +85,14 @@ public class AcidUtils {
   }
   private static final Log LOG = LogFactory.getLog(AcidUtils.class.getName());
 
-  private static final Pattern ORIGINAL_PATTERN =
+  public static final Pattern ORIGINAL_PATTERN =
       Pattern.compile("[0-9]+_[0-9]+");
+
+  /**
+   * @see org.apache.hadoop.hive.ql.exec.Utilities#COPY_KEYWORD
+   */
+  public static final Pattern ORIGINAL_PATTERN_COPY =
+    Pattern.compile("[0-9]+_[0-9]+" + COPY_KEYWORD + "[0-9]+");
 
   public static final PathFilter hiddenFileFilter = new PathFilter(){
     public boolean accept(Path p){
@@ -334,6 +344,24 @@ public class AcidUtils {
       }
     }
     return false;
+  }
+
+  /** Checks if a table is a valid ACID table.
+   * Note, users are responsible for using the correct TxnManager. We do not look at
+   * SessionState.get().getTxnMgr().supportsAcid() here
+   * @param table table
+   * @return true if table is a legit ACID table, false otherwise
+   */
+  public static boolean isAcidTable(Table table) {
+    if (table == null) {
+      return false;
+    }
+    String tableIsTransactional = table.getProperty(hive_metastoreConstants.TABLE_IS_TRANSACTIONAL);
+    if (tableIsTransactional == null) {
+      tableIsTransactional = table.getProperty(hive_metastoreConstants.TABLE_IS_TRANSACTIONAL.toUpperCase());
+    }
+
+    return tableIsTransactional != null && tableIsTransactional.equalsIgnoreCase("true");
   }
 
   /**
