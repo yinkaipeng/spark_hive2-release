@@ -55,6 +55,7 @@ import org.apache.hadoop.fs.ProxyFileSystem;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.Trash;
 import org.apache.hadoop.fs.TrashPolicy;
+import org.apache.hadoop.fs.UnsupportedFileSystemException;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclEntryScope;
 import org.apache.hadoop.fs.permission.AclEntryType;
@@ -830,6 +831,13 @@ public class Hadoop23Shims extends HadoopShimsSecure {
     }
     public ProxyFileSystem23(FileSystem fs, URI uri) {
       super(fs, uri);
+    }
+
+    @Override
+    public FileStatus getFileLinkStatus(Path f)
+        throws org.apache.hadoop.security.AccessControlException, FileNotFoundException,
+        UnsupportedFileSystemException, IOException {
+      return super.getFileLinkStatus(swizzleParamPath(f));
     }
 
     @Override
