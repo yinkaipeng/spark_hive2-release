@@ -21,7 +21,7 @@
   </parent>
   <groupId>org.spark-project.hive</groupId>
   <artifactId>hive</artifactId>
-  <version>1.21.2.2.6.5.0-SNAPSHOT</version>
+  <version>1.21.2.2.6.5.145-1</version>
   <packaging>pom</packaging>
 
   <!-- See http://central.sonatype.org/pages/apache-maven.html -->
@@ -104,7 +104,7 @@
     <maven.build-helper.plugin.version>1.8</maven.build-helper.plugin.version>
 
     <!-- Library Dependency Versions -->
-    <accumulo.version>1.7.0.2.6.5.0-SNAPSHOT</accumulo.version>
+    <accumulo.version>1.7.0.2.6.5.145-1</accumulo.version>
     <activemq.version>5.5.0</activemq.version>
     <ant.version>1.9.1</ant.version>
     <antlr.version>3.4</antlr.version>
@@ -129,7 +129,7 @@
     <guava.version>14.0.1</guava.version>
     <groovy.version>2.1.6</groovy.version>
     <hadoop-20S.version>1.2.1</hadoop-20S.version>
-    <hadoop-23.version>2.7.3.2.6.5.0-SNAPSHOT</hadoop-23.version>
+    <hadoop-23.version>2.7.3.2.6.5.145-1</hadoop-23.version>
     <hadoop.bin.path>${basedir}/${hive.path.to.root}/testutils/hadoop</hadoop.bin.path>
     <hbase.hadoop1.version>0.98.9-hadoop1</hbase.hadoop1.version>
     <hbase.hadoop2.version>0.98.9-hadoop2</hbase.hadoop2.version>
@@ -175,7 +175,7 @@
     <wadl-resourcedoc-doclet.version>1.4</wadl-resourcedoc-doclet.version>
     <velocity.version>1.5</velocity.version>
     <xerces.version>2.9.1</xerces.version>
-    <zookeeper.version>3.4.6.2.6.5.0-SNAPSHOT</zookeeper.version>
+    <zookeeper.version>3.4.6.2.6.5.145-1</zookeeper.version>
     <jpam.version>1.1</jpam.version>
     <felix.version>2.4.0</felix.version>
     <curator.version>2.6.0</curator.version>
