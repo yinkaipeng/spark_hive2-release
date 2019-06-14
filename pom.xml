@@ -12,7 +12,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache</groupId>
@@ -21,7 +21,7 @@
   </parent>
   <groupId>org.spark-project.hive</groupId>
   <artifactId>hive</artifactId>
-  <version>1.2.1.spark2.hdp.2</version>
+  <version>1.21.2.2.6.3.126-1</version>
   <packaging>pom</packaging>
 
   <!-- See http://central.sonatype.org/pages/apache-maven.html -->
@@ -73,7 +73,7 @@
     <checkstyle.conf.dir>${hive.path.to.root}/checkstyle</checkstyle.conf.dir>
 
     <!-- Test Properties -->
-    <test.extra.path></test.extra.path>
+    <test.extra.path />
     <test.hive.hadoop.classpath>${maven.test.classpath}</test.hive.hadoop.classpath>
     <test.log4j.scheme>file://</test.log4j.scheme>
     <test.tmp.dir>${project.build.directory}/tmp</test.tmp.dir>
@@ -82,8 +82,8 @@
     <test.warehouse.scheme>pfile://</test.warehouse.scheme>
 
     <!-- To add additional exclude patterns set this property -->
-    <test.excludes.additional></test.excludes.additional>
-    <skip.spark.files></skip.spark.files>
+    <test.excludes.additional />
+    <skip.spark.files />
 
     <!-- Plugin and Plugin Dependency Versions -->
     <ant.contrib.version>1.0b3</ant.contrib.version>
@@ -104,7 +104,7 @@
     <maven.build-helper.plugin.version>1.8</maven.build-helper.plugin.version>
 
     <!-- Library Dependency Versions -->
-    <accumulo.version>1.6.0</accumulo.version>
+    <accumulo.version>1.7.0.2.6.3.126-1</accumulo.version>
     <activemq.version>5.5.0</activemq.version>
     <ant.version>1.9.1</ant.version>
     <antlr.version>3.4</antlr.version>
@@ -129,7 +129,7 @@
     <guava.version>14.0.1</guava.version>
     <groovy.version>2.1.6</groovy.version>
     <hadoop-20S.version>1.2.1</hadoop-20S.version>
-    <hadoop-23.version>2.6.0</hadoop-23.version>
+    <hadoop-23.version>2.7.3.2.6.3.126-1</hadoop-23.version>
     <hadoop.bin.path>${basedir}/${hive.path.to.root}/testutils/hadoop</hadoop.bin.path>
     <hbase.hadoop1.version>0.98.9-hadoop1</hbase.hadoop1.version>
     <hbase.hadoop2.version>0.98.9-hadoop2</hbase.hadoop2.version>
@@ -175,7 +175,7 @@
     <wadl-resourcedoc-doclet.version>1.4</wadl-resourcedoc-doclet.version>
     <velocity.version>1.5</velocity.version>
     <xerces.version>2.9.1</xerces.version>
-    <zookeeper.version>3.4.6</zookeeper.version>
+    <zookeeper.version>3.4.6.2.6.3.126-1</zookeeper.version>
     <jpam.version>1.1</jpam.version>
     <felix.version>2.4.0</felix.version>
     <curator.version>2.6.0</curator.version>
@@ -765,7 +765,7 @@
             <configuration>
               <exportAntProperties>true</exportAntProperties>
               <target>
-                <property name="maven.test.classpath" refid="maven.test.classpath"/>
+                <property name="maven.test.classpath" refid="maven.test.classpath" />
               </target>
             </configuration>
           </execution>
@@ -784,7 +784,7 @@
                 <mkdir dir="${test.tmp.dir}/conf" />
                 <!-- copies hive-site.xml so it can be modified -->
                 <copy todir="${test.tmp.dir}/conf/">
-                  <fileset dir="${basedir}/${hive.path.to.root}/data/conf/"/>
+                  <fileset dir="${basedir}/${hive.path.to.root}/data/conf/" />
                 </copy>
               </target>
             </configuration>
@@ -969,19 +969,18 @@
                 <phase>generate-sources</phase>
                 <configuration>
                   <target>
-                    <taskdef name="for" classname="net.sf.antcontrib.logic.ForTask"
-                      classpathref="maven.plugin.classpath" />
-                    <property name="thrift.args" value="-I ${thrift.home} --gen java:beans,hashcode --gen cpp --gen php --gen py --gen rb"/>
-                    <property name="thrift.gen.dir" value="${basedir}/src/gen/thrift"/>
-                    <delete dir="${thrift.gen.dir}"/>
-                    <mkdir dir="${thrift.gen.dir}"/>
+                    <taskdef classname="net.sf.antcontrib.logic.ForTask" classpathref="maven.plugin.classpath" name="for" />
+                    <property name="thrift.args" value="-I ${thrift.home} --gen java:beans,hashcode --gen cpp --gen php --gen py --gen rb" />
+                    <property name="thrift.gen.dir" value="${basedir}/src/gen/thrift" />
+                    <delete dir="${thrift.gen.dir}" />
+                    <mkdir dir="${thrift.gen.dir}" />
                     <for param="thrift.file">
                       <path>
                         <fileset dir="." includes="if/*.thrift,if/test/*.thrift" />
                       </path>
                       <sequential>
-                        <echo message="Generating Thrift code for @{thrift.file}"/>
-                        <exec executable="${thrift.home}/bin/thrift"  failonerror="true" dir=".">
+                        <echo message="Generating Thrift code for @{thrift.file}" />
+                        <exec dir="." executable="${thrift.home}/bin/thrift" failonerror="true">
                           <arg line="${thrift.args} -I ${basedir}/include -I ${basedir}/.. -o ${thrift.gen.dir} @{thrift.file} " />
                         </exec>
                       </sequential>
